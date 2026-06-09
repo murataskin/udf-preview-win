@@ -15,16 +15,25 @@ Solda Gezgin küçük resimleri, sağda Önizleme Bölmesi:
 
 ## Kurulum
 
-PowerShell'e yapıştırın:
+Tek satırlık komutu PowerShell'de çalıştırın. PowerShell'i hiç açmadıysanız:
+
+1. Klavyeden **Windows tuşuna** basın.
+2. **`powershell`** yazın.
+3. Çıkan **"Windows PowerShell"** (mavi simge) sonucuna tıklayıp açın.
+4. Aşağıdaki komutu **kopyalayıp** PowerShell penceresine **yapıştırın**
+   (pencereye **sağ tıklamak** yapıştırır), sonra **Enter**'a basın:
 
 ```powershell
 irm https://github.com/saidsurucu/udf-preview-win/releases/latest/download/install.ps1 | iex
 ```
 
-Derleme veya araç zinciri gerekmez — hazır, kendi kendine yeten DLL indirilir.
-**Küçük resim** yönetici istemez; **Önizleme Bölmesi** için bir kez yönetici (UAC) onayı
-gerekir. Gereksinim: Windows 10/11 (x64) + Edge WebView2 Runtime (Windows 11'de yerleşik,
-Windows 10'da otomatik kurulur).
+5. Kurulum sırasında bir **izin penceresi (UAC)** çıkarsa **"Evet"** deyin
+   (bu yalnızca Önizleme Bölmesi içindir). "Kuruldu!" yazısını görünce hazırdır.
+
+> Derleme veya araç zinciri gerekmez — hazır, kendi kendine yeten dosya indirilir.
+> **Küçük resim** yönetici istemez; **Önizleme Bölmesi** için bir kez yönetici onayı gerekir.
+> Gereksinim: Windows 10/11 (x64) + Edge WebView2 Runtime (Windows 11'de yerleşik,
+> Windows 10'da otomatik kurulur).
 
 ## Kaldırma
 
