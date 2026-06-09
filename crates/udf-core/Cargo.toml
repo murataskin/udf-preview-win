@@ -1,0 +1,19 @@
+[package]
+name = "udf-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Cross-platform UYAP .udf parser + HTML/RTF backends"
+
+[dependencies]
+zip = { version = "2.2", default-features = false, features = ["deflate"] }
+roxmltree = "0.20"
+base64 = "0.22"
+
+[dev-dependencies]
+# Used by integration tests to synthesize .udf archives in-memory.
+zip = { version = "2.2", default-features = false, features = ["deflate"] }
+# Used by integration tests to re-parse generated HTML and assert well-formedness.
+roxmltree = "0.20"

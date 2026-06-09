@@ -1,0 +1,43 @@
+[package]
+name = "udf-shell"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Phase 2 (Windows): COM DLL — IThumbnailProvider + IPreviewHandler for .udf."
+
+[lib]
+# cdylib for the shell to load the DLL; rlib so examples/tests can call the renderer directly.
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+udf-core = { path = "../udf-core" }
+
+[target.'cfg(windows)'.dependencies]
+windows-core = "0.58"
+windows = { version = "0.58", features = [
+    "implement",
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_System_Com",
+    "Win32_System_Com_StructuredStorage",
+    "Win32_System_Ole",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Registry",
+    "Win32_System_Memory",
+    "Win32_Graphics_Gdi",
+    "Win32_UI_Shell",
+    "Win32_UI_Shell_Common",
+    "Win32_UI_Shell_PropertiesSystem",
+    "Win32_UI_Controls",
+    "Win32_UI_Controls_RichEdit",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
+# WebView2 host for the preview handler (raw, since the COM/prevhost model doesn't fit wry).
+[target.'cfg(windows)'.dependencies.wry]
+version = "0.45"
+
+[features]
+default = []

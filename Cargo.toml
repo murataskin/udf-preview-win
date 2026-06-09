@@ -1,0 +1,22 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/udf-core",
+    "crates/udf-cli",
+    "crates/udf-shell",
+    "crates/udf-viewer",
+]
+# Root `cargo build` / `cargo test` operate on the cross-platform core + CLI only,
+# keeping Phase 1 iteration fast. The Windows-only crates (udf-shell, udf-viewer) are
+# stubs for now; build them explicitly with `cargo build --workspace` once Phase 2 starts.
+default-members = [
+    "crates/udf-core",
+    "crates/udf-cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.80"
+license = "MIT"
+repository = "https://github.com/saidsurucu/udf-preview-win"

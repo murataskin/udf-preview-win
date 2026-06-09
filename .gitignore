@@ -1,0 +1,12 @@
+/target
+# Cargo.lock IS committed — this workspace ships binaries/a DLL, so locked, reproducible
+# builds matter (CI runs with --locked).
+# No .udf files in the repo at all — they may carry confidential legal content. Test inputs
+# live locally (e.g. fixtures/sample.udf, kept on disk but untracked) and real samples are
+# swept via the UDF_SAMPLE_DIR env var.
+*.udf
+/fixtures/private/
+
+# Only README.md is tracked; all other .md (design specs, notes) stay local-only.
+*.md
+!README.md

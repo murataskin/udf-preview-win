@@ -1,0 +1,53 @@
+name: Release
+
+# Push a version tag to build the Windows artifacts and publish a GitHub Release with the
+# self-contained DLL + one-line install/uninstall scripts:
+#   git tag v0.1.0 && git push origin v0.1.0
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write   # needed to create the release and upload assets
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      # .cargo/config.toml pins +crt-static, so the DLL/EXEs are self-contained (no VC++ redist).
+      - name: Build release artifacts
+        run: cargo build --release --workspace --locked
+
+      - name: Collect artifacts
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item target/release/udf_shell.dll        dist/
+          Copy-Item target/release/udf-viewer.exe       dist/
+          Copy-Item target/release/udf-cli.exe          dist/
+          Copy-Item crates/udf-shell/install.ps1        dist/
+          Copy-Item crates/udf-shell/uninstall.ps1      dist/
+          Get-FileHash dist/udf_shell.dll -Algorithm SHA256 |
+            ForEach-Object { "$($_.Hash)  udf_shell.dll" } | Out-File dist/SHA256SUMS.txt -Encoding ascii
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/udf_shell.dll
+            dist/udf-viewer.exe
+            dist/udf-cli.exe
+            dist/install.ps1
+            dist/uninstall.ps1
+            dist/SHA256SUMS.txt
+          body: |
+            ## Kurulum (tek satır)
+            ```powershell
+            irm https://github.com/${{ github.repository }}/releases/latest/download/install.ps1 | iex
+            ```
+            `.udf` dosyaları Windows Gezgini'nde küçük resim ve Önizleme Bölmesi (Alt+P) gösterir.
+            Kaldırma: `irm https://github.com/${{ github.repository }}/releases/latest/download/uninstall.ps1 | iex`

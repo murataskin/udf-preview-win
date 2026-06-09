@@ -1,0 +1,5 @@
+# Statically link the MSVC C runtime so the shipped DLL/EXEs have no VCRUNTIME140 dependency
+# and load on a clean Windows machine without the VC++ Redistributable installed. Essential
+# for a shell extension distributed to end users.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]

@@ -1,0 +1,15 @@
+[package]
+name = "udf-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "CLI to convert .udf files to HTML or RTF (for eyeballing on Windows)"
+
+[[bin]]
+name = "udf-cli"
+path = "src/main.rs"
+
+[dependencies]
+udf-core = { path = "../udf-core" }

@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Primary lane: development happens on Windows. Build+test the core + CLI, then
+  # compile-check the whole workspace (incl. the Windows-only stub crates).
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Test core + CLI (default-members)
+        run: cargo test --locked
+      - name: Build whole workspace (incl. Windows-only crates)
+        run: cargo build --workspace --locked
+
+  # Optional lane: keep the core honest about staying cross-platform.
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Test core + CLI (default-members)
+        run: cargo test --locked
+      - name: Format check
+        run: cargo fmt --all --check
+      - name: Clippy (core + CLI)
+        run: cargo clippy -- -D warnings
