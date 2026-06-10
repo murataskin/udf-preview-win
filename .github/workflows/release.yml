@@ -46,6 +46,7 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('v0.2.0-manual-{0}', github.run_number) }}
           files: |
             dist/udf_shell.dll
             dist/udf_shell_x86.dll
