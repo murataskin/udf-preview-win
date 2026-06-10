@@ -5,8 +5,8 @@
 //!     child window in the Preview Pane.
 //!
 //! Every COM method that parses/renders is wrapped in `catch_unwind` (a panic crossing into
-//! `explorer.exe`/`prevhost.exe` is UB). CLSIDs are fixed; registration is per-user under
-//! `HKCU\Software\Classes` (no admin).
+//! `explorer.exe`/`prevhost.exe` is UB). CLSIDs are fixed; registration is handled via the
+//! PowerShell `install.ps1` script (requires Administrator for HKLM).
 //!
 //! The crate also builds as an `rlib` so `examples/` and tests can call the renderer directly
 //! — letting us verify the produced bitmap/HTML without registering the DLL in Explorer.
@@ -20,7 +20,6 @@ pub mod thumbnail;
 
 mod com;
 mod preview;
-mod registry;
 
 pub use com::{
     DllCanUnloadNow, DllGetClassObject, DllRegisterServer, DllUnregisterServer, PREVIEW_CLSID,

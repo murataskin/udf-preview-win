@@ -24,7 +24,7 @@ Tek satırlık komutu PowerShell'de çalıştırın. PowerShell'i hiç açmadıy
    (pencereye **sağ tıklamak** yapıştırır), sonra **Enter**'a basın:
 
 ```powershell
-irm https://github.com/saidsurucu/udf-preview-win/releases/latest/download/install.ps1 | iex
+irm https://github.com/murataskin/udf-preview-win/releases/latest/download/install.ps1 | iex
 ```
 
 5. Kurulum sırasında bir **izin penceresi (UAC)** çıkarsa **"Evet"** deyin
@@ -63,7 +63,7 @@ Kaynaktan kurmak için:
 
 ```powershell
 cargo build -p udf-shell --release
-crates\udf-shell\register.ps1      # Önizleme Bölmesi için yönetici olarak çalıştırın
+# Kayıt için install.ps1 içindeki mantık veya manuel kayıt kullanılabilir.
 ```
 
 Yeni sürüm yayınlamak: `git tag vX.Y.Z && git push origin vX.Y.Z` — GitHub Actions
