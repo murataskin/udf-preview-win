@@ -208,17 +208,13 @@ pub extern "system" fn DllCanUnloadNow() -> HRESULT {
 #[no_mangle]
 #[allow(non_snake_case)]
 pub extern "system" fn DllRegisterServer() -> HRESULT {
-    match crate::registry::register() {
-        Ok(()) => S_OK,
-        Err(e) => e.code(),
-    }
+    // No-op. Manual registration via PowerShell installer is more robust for 
+    // arch-specific paths and permission management.
+    S_OK
 }
 
 #[no_mangle]
 #[allow(non_snake_case)]
 pub extern "system" fn DllUnregisterServer() -> HRESULT {
-    match crate::registry::unregister() {
-        Ok(()) => S_OK,
-        Err(e) => e.code(),
-    }
+    S_OK
 }
