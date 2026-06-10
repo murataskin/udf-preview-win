@@ -1,12 +1,12 @@
 ﻿**********************
 Windows PowerShell transcript start
-Start time: 20260610181933
+Start time: 20260610182653
 Username: STAJYER2\PC
 RunAs User: STAJYER2\PC
 Configuration Name: 
 Machine: STAJYER2 (Microsoft Windows NT 10.0.19045.0)
-Host Application: C:\Windows\System32\WindowsPowerShell\v1.0\powershell_ise.exe D:\MAIN\PC\DESKTOP\tehis.ps1
-Process ID: 16064
+Host Application: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -Command if((Get-ExecutionPolicy ) -ne 'AllSigned') { Set-ExecutionPolicy -Scope Process Bypass }; & 'D:\MAIN\PC\DESKTOP\x.ps1'
+Process ID: 167420
 PSVersion: 5.1.19041.6456
 PSEdition: Desktop
 PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.19041.6456
@@ -18,7 +18,7 @@ SerializationVersion: 1.1.0.1
 **********************
 ==================================================
  UDF PREVIEW HANDLER DIAGNOSTIC SCRIPT
- Date: 2026-06-10 18:19:33
+ Date: 2026-06-10 18:26:53
 ==================================================
 
 --- 1. SYSTEM & OS INFO ---
@@ -40,17 +40,17 @@ Outlook.exe Path: C:\Program Files (x86)\Microsoft Office\Root\Office16\OUTLOOK.
 --- 3. UDF EXTENSION REGISTRATION ---
 [MISSING/EMPTY] HKCR:\.udf -> (default)
 [MISSING/EMPTY] HKCR:\.udf\ShellEx\{8895b1c6-b41f-4c1c-a562-0d564250836f} -> (default)
-[OK] HKCU:\Software\Classes\.udf\ShellEx\{8895b1c6-b41f-4c1c-a562-0d564250836f} -> (default) : {7F3D9A21-4C8B-4E1A-9F2D-1A2B3C4D5E62}
+[MISSING/EMPTY] HKCU:\Software\Classes\.udf\ShellEx\{8895b1c6-b41f-4c1c-a562-0d564250836f} -> (default)
 
 --- 4. CLSID REGISTRATIONS (PREVIEW HANDLER) ---
 >> 64-bit / Standard CLSID (HKCU & HKCR)
-[OK] HKCU:\Software\Classes\CLSID\{7F3D9A21-4C8B-4E1A-9F2D-1A2B3C4D5E62} -> AppID : {6d2b5079-2f0b-48dd-ab7f-97cec514d30b}
-[OK] HKCU:\Software\Classes\CLSID\{7F3D9A21-4C8B-4E1A-9F2D-1A2B3C4D5E62}\InprocServer32 -> (default) : C:\Users\PC\AppData\Local\udf-preview\udf_shell.dll
+[MISSING/EMPTY] HKCU:\Software\Classes\CLSID\{7F3D9A21-4C8B-4E1A-9F2D-1A2B3C4D5E62} -> AppID
+[MISSING/EMPTY] HKCU:\Software\Classes\CLSID\{7F3D9A21-4C8B-4E1A-9F2D-1A2B3C4D5E62}\InprocServer32 -> (default)
 [MISSING/EMPTY] HKCR:\CLSID\{7F3D9A21-4C8B-4E1A-9F2D-1A2B3C4D5E62} -> AppID
 [MISSING/EMPTY] HKCR:\CLSID\{7F3D9A21-4C8B-4E1A-9F2D-1A2B3C4D5E62}\InprocServer32 -> (default)
 >> 32-bit / WOW6432Node CLSID (HKCU & HKCR)
-[OK] HKCU:\Software\Classes\WOW6432Node\CLSID\{7F3D9A21-4C8B-4E1A-9F2D-1A2B3C4D5E62} -> AppID : {534A1E02-2BFE-4DF0-945D-255D5CE79298}
-[OK] HKCU:\Software\Classes\WOW6432Node\CLSID\{7F3D9A21-4C8B-4E1A-9F2D-1A2B3C4D5E62}\InprocServer32 -> (default) : C:\Users\PC\AppData\Local\udf-preview\udf_shell_x86.dll
+[MISSING/EMPTY] HKCU:\Software\Classes\WOW6432Node\CLSID\{7F3D9A21-4C8B-4E1A-9F2D-1A2B3C4D5E62} -> AppID
+[MISSING/EMPTY] HKCU:\Software\Classes\WOW6432Node\CLSID\{7F3D9A21-4C8B-4E1A-9F2D-1A2B3C4D5E62}\InprocServer32 -> (default)
 [MISSING/EMPTY] HKCR:\WOW6432Node\CLSID\{7F3D9A21-4C8B-4E1A-9F2D-1A2B3C4D5E62} -> AppID
 [MISSING/EMPTY] HKCR:\WOW6432Node\CLSID\{7F3D9A21-4C8B-4E1A-9F2D-1A2B3C4D5E62}\InprocServer32 -> (default)
 
@@ -60,8 +60,8 @@ Outlook.exe Path: C:\Program Files (x86)\Microsoft Office\Root\Office16\OUTLOOK.
 [OK] HKCU:\Software\Microsoft\Windows\CurrentVersion\PreviewHandlers -> {7F3D9A21-4C8B-4E1A-9F2D-1A2B3C4D5E62} : UDF Preview Handler
 
 --- 6. DLL FILE VERIFICATION ---
-[OK] Found: C:\Users\PC\AppData\Local\udf-preview\udf_shell.dll (1089536 bytes)
-[OK] Found: C:\Users\PC\AppData\Local\udf-preview\udf_shell_x86.dll (901120 bytes)
+[OK] Found: C:\Users\PC\AppData\Local\udf-preview\udf_shell.dll (1090048 bytes)
+[OK] Found: C:\Users\PC\AppData\Local\udf-preview\udf_shell_x86.dll (901632 bytes)
 
 --- 7. WEBVIEW2 REGISTRATION ---
 [OK] HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5} -> pv : 149.0.4022.52
@@ -74,5 +74,5 @@ No relevant crashes or errors found in Application log.
 ==================================================
 **********************
 Windows PowerShell transcript end
-End time: 20260610181944
+End time: 20260610182704
 **********************

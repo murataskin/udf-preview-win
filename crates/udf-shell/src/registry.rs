@@ -48,13 +48,8 @@ fn wide(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(std::iter::once(0)).collect()
 }
 
-/// Create `<root>\Software\Classes\<subkey>` and set a string value (default value if `name` None).
-fn set_string(root: HKEY, subkey: &str, name: Option<&str>, data: &str) -> Result<()> {
-    let full = format!("Software\\Classes\\{subkey}");
-    set_string_in(root, &full, name, data)
-}
-
-fn set_string_in(root: HKEY, subkey: &str, name: Option<&str>, data: &str) -> Result<()> {
+/// Create `<root>\<subkey>` and set a string value (default value if `name` None).
+fn set_reg_string(root: HKEY, subkey: &str, name: Option<&str>, data: &str) -> Result<()> {
     unsafe {
         let mut hkey = HKEY::default();
         let err = RegCreateKeyExW(
@@ -90,10 +85,9 @@ fn set_string_in(root: HKEY, subkey: &str, name: Option<&str>, data: &str) -> Re
     }
 }
 
-fn delete_tree(root: HKEY, subkey: &str) {
-    let full = format!("Software\\Classes\\{subkey}");
+fn delete_reg_tree(root: HKEY, subkey: &str) {
     unsafe {
-        let _ = RegDeleteTreeW(root, PCWSTR(wide(&full).as_ptr()));
+        let _ = RegDeleteTreeW(root, PCWSTR(wide(subkey).as_ptr()));
     }
 }
 
@@ -101,70 +95,73 @@ fn delete_tree(root: HKEY, subkey: &str) {
 fn module_path() -> Result<String> {
     unsafe {
         let mut hmodule = windows::Win32::Foundation::HMODULE::default();
+        // Use GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS to find the handle of the DLL we are in.
+        // We pass the address of this function itself.
         GetModuleHandleExW(
             GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-            PCWSTR(module_path as *const () as *const u16),
+            PCWSTR(module_path as *const u16),
             &mut hmodule,
         )?;
         let mut buf = [0u16; MAX_PATH as usize];
         let n = GetModuleFileNameW(hmodule, &mut buf);
+        if n == 0 {
+            return Err(E_FAIL.into());
+        }
         Ok(String::from_utf16_lossy(&buf[..n as usize]))
     }
 }
 
-/// Register both handlers. We prioritize HKEY_LOCAL_MACHINE because it supports
-/// architecture redirection (WOW6432Node), allowing 32-bit Outlook and 64-bit
-/// Explorer to find their respective DLLs using the same CLSID.
+/// Register both handlers. 
+/// 
+/// CRITICAL: On 64-bit Windows, HKLM\Software\Classes is redirected for 32-bit apps to 
+/// WOW6432Node. HKCU\Software\Classes is NOT redirected.
+/// To support 32-bit Outlook and 64-bit Explorer simultaneously, we MUST use HKLM 
+/// (requires Admin) or use architecture-specific CLSIDs (complex).
 pub fn register() -> Result<()> {
     let dll = module_path()?;
     let thumb = guid_str(&THUMBNAIL_CLSID);
     let preview = guid_str(&PREVIEW_CLSID);
 
-    // Try HKLM first (requires admin), then fallback to HKCU.
-    // HKCU does not support WOW6432Node redirection for Classes, so Outlook 32-bit
-    // will likely fail if only registered in HKCU.
-    let root = match set_string(windows::Win32::System::Registry::HKEY_LOCAL_MACHINE, &format!("CLSID\\{thumb}"), None, "UDF Thumbnail Handler") {
-        Ok(_) => windows::Win32::System::Registry::HKEY_LOCAL_MACHINE,
-        Err(_) => HKEY_CURRENT_USER,
-    };
+    // 1. Try HKLM (preferred for WOW6432Node support).
+    let hklm = windows::Win32::System::Registry::HKEY_LOCAL_MACHINE;
+    let hklm_res = (|| -> Result<()> {
+        // Thumbnail CLSID
+        set_reg_string(hklm, &format!("Software\\Classes\\CLSID\\{thumb}"), None, "UDF Thumbnail Handler")?;
+        set_reg_string(hklm, &format!("Software\\Classes\\CLSID\\{thumb}\\InprocServer32"), None, &dll)?;
+        set_reg_string(hklm, &format!("Software\\Classes\\CLSID\\{thumb}\\InprocServer32"), Some("ThreadingModel"), "Apartment")?;
+        
+        // Preview CLSID
+        set_reg_string(hklm, &format!("Software\\Classes\\CLSID\\{preview}"), None, "UDF Preview Handler")?;
+        set_reg_string(hklm, &format!("Software\\Classes\\CLSID\\{preview}"), Some("AppID"), PREVHOST_APPID)?;
+        set_reg_string(hklm, &format!("Software\\Classes\\CLSID\\{preview}\\InprocServer32"), None, &dll)?;
+        set_reg_string(hklm, &format!("Software\\Classes\\CLSID\\{preview}\\InprocServer32"), Some("ThreadingModel"), "Apartment")?;
 
-    // Thumbnail provider COM server.
-    set_string(root, &format!("CLSID\\{thumb}"), None, "UDF Thumbnail Handler")?;
-    set_string(root, &format!("CLSID\\{thumb}\\InprocServer32"), None, &dll)?;
-    set_string(
-        root,
-        &format!("CLSID\\{thumb}\\InprocServer32"),
-        Some("ThreadingModel"),
-        "Apartment",
-    )?;
-    // Associate it with the .udf thumbnail slot.
-    set_string(root, &format!(".udf\\ShellEx\\{CAT_THUMBNAIL}"), None, &thumb)?;
+        // Shell extension associations
+        set_reg_string(hklm, &format!("Software\\Classes\\.udf\\ShellEx\\{CAT_THUMBNAIL}"), None, &thumb)?;
+        set_reg_string(hklm, &format!("Software\\Classes\\.udf\\ShellEx\\{CAT_PREVIEW}"), None, &preview)?;
+        
+        // Approved handlers list
+        set_reg_string(hklm, "Software\\Microsoft\\Windows\\CurrentVersion\\PreviewHandlers", Some(&preview), "UDF Preview Handler")?;
+        Ok(())
+    })();
 
-    // Preview handler COM server (runs in the prevhost surrogate).
-    set_string(root, &format!("CLSID\\{preview}"), None, "UDF Preview Handler")?;
-    set_string(root, &format!("CLSID\\{preview}"), Some("AppID"), PREVHOST_APPID)?;
-    set_string(root, &format!("CLSID\\{preview}\\InprocServer32"), None, &dll)?;
-    set_string(
-        root,
-        &format!("CLSID\\{preview}\\InprocServer32"),
-        Some("ThreadingModel"),
-        "Apartment",
-    )?;
-    set_string(root, &format!(".udf\\ShellEx\\{CAT_PREVIEW}"), None, &preview)?;
+    // 2. Fallback to HKCU if HKLM failed (e.g. no Admin).
+    if hklm_res.is_err() {
+        let hkcu = HKEY_CURRENT_USER;
+        set_reg_string(hkcu, &format!("Software\\Classes\\CLSID\\{thumb}"), None, "UDF Thumbnail Handler")?;
+        set_reg_string(hkcu, &format!("Software\\Classes\\CLSID\\{thumb}\\InprocServer32"), None, &dll)?;
+        set_reg_string(hkcu, &format!("Software\\Classes\\CLSID\\{thumb}\\InprocServer32"), Some("ThreadingModel"), "Apartment")?;
 
-    // Approved preview handlers list (Machine-wide and User-wide).
-    let _ = set_string_in(
-        windows::Win32::System::Registry::HKEY_LOCAL_MACHINE,
-        "Software\\Microsoft\\Windows\\CurrentVersion\\PreviewHandlers",
-        Some(&preview),
-        "UDF Preview Handler",
-    );
-    let _ = set_string_in(
-        HKEY_CURRENT_USER,
-        "Software\\Microsoft\\Windows\\CurrentVersion\\PreviewHandlers",
-        Some(&preview),
-        "UDF Preview Handler",
-    );
+        set_reg_string(hkcu, &format!("Software\\Classes\\CLSID\\{preview}"), None, "UDF Preview Handler")?;
+        set_reg_string(hkcu, &format!("Software\\Classes\\CLSID\\{preview}"), Some("AppID"), PREVHOST_APPID)?;
+        set_reg_string(hkcu, &format!("Software\\Classes\\CLSID\\{preview}\\InprocServer32"), None, &dll)?;
+        set_reg_string(hkcu, &format!("Software\\Classes\\CLSID\\{preview}\\InprocServer32"), Some("ThreadingModel"), "Apartment")?;
+
+        set_reg_string(hkcu, &format!("Software\\Classes\\.udf\\ShellEx\\{CAT_THUMBNAIL}"), None, &thumb)?;
+        set_reg_string(hkcu, &format!("Software\\Classes\\.udf\\ShellEx\\{CAT_PREVIEW}"), None, &preview)?;
+        
+        set_reg_string(hkcu, "Software\\Microsoft\\Windows\\CurrentVersion\\PreviewHandlers", Some(&preview), "UDF Preview Handler")?;
+    }
 
     Ok(())
 }
@@ -174,14 +171,14 @@ pub fn unregister() -> Result<()> {
     let thumb = guid_str(&THUMBNAIL_CLSID);
     let preview = guid_str(&PREVIEW_CLSID);
     
-    for &root in &[windows::Win32::System::Registry::HKEY_LOCAL_MACHINE, HKEY_CURRENT_USER] {
-        delete_tree(root, &format!("CLSID\\{thumb}"));
-        delete_tree(root, &format!(".udf\\ShellEx\\{CAT_THUMBNAIL}"));
-        delete_tree(root, &format!("CLSID\\{preview}"));
-        delete_tree(root, &format!(".udf\\ShellEx\\{CAT_PREVIEW}"));
+    let roots = [windows::Win32::System::Registry::HKEY_LOCAL_MACHINE, HKEY_CURRENT_USER];
+    for &root in &roots {
+        delete_reg_tree(root, &format!("Software\\Classes\\CLSID\\{thumb}"));
+        delete_reg_tree(root, &format!("Software\\Classes\\CLSID\\{preview}"));
+        delete_reg_tree(root, &format!("Software\\Classes\\.udf\\ShellEx\\{CAT_THUMBNAIL}"));
+        delete_reg_tree(root, &format!("Software\\Classes\\.udf\\ShellEx\\{CAT_PREVIEW}"));
         
         unsafe {
-            let name = wide(&preview);
             let mut hkey = HKEY::default();
             if RegCreateKeyExW(
                 root,
@@ -195,7 +192,8 @@ pub fn unregister() -> Result<()> {
                 None,
             ) == ERROR_SUCCESS
             {
-                let _ = windows::Win32::System::Registry::RegDeleteValueW(hkey, PCWSTR(name.as_ptr()));
+                let name_w = wide(&preview);
+                let _ = windows::Win32::System::Registry::RegDeleteValueW(hkey, PCWSTR(name_w.as_ptr()));
                 let _ = RegCloseKey(hkey);
             }
         }
