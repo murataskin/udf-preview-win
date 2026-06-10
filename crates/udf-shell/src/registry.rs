@@ -1,7 +1,7 @@
 //! Per-user (`HKCU\Software\Classes`) registration of the shell handlers — no admin needed.
 
 use windows::core::{Result, GUID, PCWSTR};
-use windows::Win32::Foundation::{ERROR_SUCCESS, MAX_PATH};
+use windows::Win32::Foundation::{ERROR_SUCCESS, E_FAIL, MAX_PATH};
 use windows::Win32::System::LibraryLoader::{
     GetModuleFileNameW, GetModuleHandleExW, GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS,
     GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
