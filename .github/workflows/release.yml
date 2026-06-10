@@ -16,29 +16,38 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: i686-pc-windows-msvc
       - uses: Swatinem/rust-cache@v2
 
       # .cargo/config.toml pins +crt-static, so the DLL/EXEs are self-contained (no VC++ redist).
       - name: Build release artifacts
-        run: cargo build --release --workspace --locked
+        run: |
+          cargo build --release --workspace --locked
+          cargo build --release -p udf-shell --locked --target i686-pc-windows-msvc
 
       - name: Collect artifacts
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
-          Copy-Item target/release/udf_shell.dll        dist/
-          Copy-Item target/release/udf-viewer.exe       dist/
-          Copy-Item target/release/udf-cli.exe          dist/
-          Copy-Item crates/udf-shell/install.ps1        dist/
-          Copy-Item crates/udf-shell/uninstall.ps1      dist/
+          Copy-Item target/release/udf_shell.dll                      dist/
+          Copy-Item target/i686-pc-windows-msvc/release/udf_shell.dll dist/udf_shell_x86.dll
+          Copy-Item target/release/udf-viewer.exe                     dist/
+          Copy-Item target/release/udf-cli.exe                        dist/
+          Copy-Item crates/udf-shell/install.ps1                      dist/
+          Copy-Item crates/udf-shell/uninstall.ps1                    dist/
+          
           Get-FileHash dist/udf_shell.dll -Algorithm SHA256 |
             ForEach-Object { "$($_.Hash)  udf_shell.dll" } | Out-File dist/SHA256SUMS.txt -Encoding ascii
+          Get-FileHash dist/udf_shell_x86.dll -Algorithm SHA256 |
+            ForEach-Object { "$($_.Hash)  udf_shell_x86.dll" } | Out-File dist/SHA256SUMS.txt -Encoding ascii -Append
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             dist/udf_shell.dll
+            dist/udf_shell_x86.dll
             dist/udf-viewer.exe
             dist/udf-cli.exe
             dist/install.ps1

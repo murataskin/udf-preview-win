@@ -30,33 +30,45 @@ if (-not (Test-WebView2)) {
     Start-Process $boot -ArgumentList '/silent','/install' -Wait
 }
 
-# 2) Download the self-contained DLL to a stable per-user location.
+# 2) Download self-contained DLLs to a stable per-user location.
 $dir = "$env:LOCALAPPDATA\udf-preview"
 New-Item -ItemType Directory -Force $dir | Out-Null
 $dll = "$dir\udf_shell.dll"
-# Free a previously-loaded copy so the download can overwrite it.
+$dllX86 = "$dir\udf_shell_x86.dll"
+
+# Free previously-loaded copies so the download can overwrite them.
 Stop-Process -Name explorer, dllhost, prevhost, msedgewebview2 -Force -ErrorAction SilentlyContinue
 Start-Sleep -Milliseconds 800
-Invoke-WebRequest $dllUrl -OutFile $dll -UseBasicParsing
-Unblock-File $dll   # strip Mark-of-the-Web so the shell loads it without a prompt
 
-# 3) Register the COM server + .udf thumbnail/preview keys (per-user, HKCU).
-& regsvr32.exe /s $dll
-Write-Host 'Thumbnail kaydedildi (yönetici gerekmez).' -ForegroundColor Green
+Invoke-WebRequest $dllUrl -OutFile $dll -UseBasicParsing
+Invoke-WebRequest $dllX86Url -OutFile $dllX86 -UseBasicParsing
+Unblock-File $dll
+Unblock-File $dllX86
+
+# 3) Register COM servers + .udf thumbnail/preview keys (per-user, HKCU).
+& "$env:windir\System32\regsvr32.exe" /s $dll
+if (Test-Path "$env:windir\SysWOW64\regsvr32.exe") {
+    & "$env:windir\SysWOW64\regsvr32.exe" /s $dllX86
+}
+Write-Host 'Thumbnail kaydedildi (x64 + x86).' -ForegroundColor Green
 
 # 4) Preview Pane needs the CLSID in the machine-wide HKLM approved list (one UAC prompt).
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()
           ).IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)
-$hklmCmd = "reg add ""HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\PreviewHandlers"" /v ""$previewClsid"" /t REG_SZ /d ""UDF Preview Handler"" /f"
+
+$hklmCmd64 = "reg add ""HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\PreviewHandlers"" /v ""$previewClsid"" /t REG_SZ /d ""UDF Preview Handler"" /f"
+$hklmCmd32 = "reg add ""HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\PreviewHandlers"" /v ""$previewClsid"" /t REG_SZ /d ""UDF Preview Handler"" /f"
+
 try {
     if ($isAdmin) {
-        cmd /c $hklmCmd | Out-Null
+        cmd /c $hklmCmd64 | Out-Null
+        cmd /c $hklmCmd32 | Out-Null
     } else {
-        Start-Process cmd.exe -ArgumentList "/c $hklmCmd" -Verb RunAs -Wait
+        Start-Process cmd.exe -ArgumentList "/c $hklmCmd64 & $hklmCmd32" -Verb RunAs -Wait
     }
-    Write-Host 'Önizleme bölmesi etkin.' -ForegroundColor Green
+    Write-Host 'Önizleme bölmesi ve Outlook entegrasyonu etkin.' -ForegroundColor Green
 } catch {
-    Write-Warning 'Önizleme bölmesi atlandı (yönetici onayı verilmedi). Thumbnail yine de çalışır.'
+    Write-Warning 'Önizleme bölmesi atlandı (yönetici onayı verilmedi).'
 }
 
 # 5) Pick up the new handler.

@@ -18,9 +18,14 @@ const CAT_THUMBNAIL: &str = "{e357fccd-a995-4576-b01f-234630154e96}";
 /// Shell category GUID for `IPreviewHandler`.
 const CAT_PREVIEW: &str = "{8895b1c6-b41f-4c1c-a562-0d564250836f}";
 /// The **64-bit** prevhost surrogate AppID (`System32\prevhost.exe`) that runs preview
-/// handlers out-of-process. (The `{534A1E02-…}` AppID is the 32-bit surrogate in `SysWOW64`
-/// and cannot load our x64 DLL.)
+/// handlers out-of-process.
+#[cfg(target_arch = "x86_64")]
 const PREVHOST_APPID: &str = "{6d2b5079-2f0b-48dd-ab7f-97cec514d30b}";
+
+/// The **32-bit** prevhost surrogate AppID (`SysWOW64\prevhost.exe`).
+/// Required for 32-bit Outlook to load the previewer.
+#[cfg(target_arch = "x86")]
+const PREVHOST_APPID: &str = "{534A1E02-2BFE-4DF0-945D-255D5CE79298}";
 
 fn guid_str(g: &GUID) -> String {
     format!(
