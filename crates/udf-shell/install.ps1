@@ -55,38 +55,54 @@ Unblock-File $dll
 Unblock-File $dllX86
 
 # 3) Manual Registry Injection (The "regsvr32" bypass)
-function Set-RegKey($path, $name, $value) {
+function Set-RegValue($path, $name, $value) {
     if (-not (Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
-    Set-ItemProperty -Path $path -Name $name -Value $value -Type String | Out-Null
+    if ($name -eq "(default)") {
+        Set-Item -Path $path -Value $value | Out-Null
+    } else {
+        Set-ItemProperty -Path $path -Name $name -Value $value -Type String -Force | Out-Null
+    }
 }
 
-# --- 64-bit Registration (Native) ---
+# --- 1. CLSID Registration (64-bit) ---
 Write-Host 'x64 (Windows Gezgini) kaydı yapılıyor...' -ForegroundColor Gray
-Set-RegKey "HKLM:\SOFTWARE\Classes\CLSID\$thumbClsid" "(default)" "UDF Thumbnail Handler"
-Set-RegKey "HKLM:\SOFTWARE\Classes\CLSID\$thumbClsid\InprocServer32" "(default)" $dll
-Set-RegKey "HKLM:\SOFTWARE\Classes\CLSID\$thumbClsid\InprocServer32" "ThreadingModel" "Apartment"
+$clsid64 = "HKLM:\SOFTWARE\Classes\CLSID"
+Set-RegValue "$clsid64\$thumbClsid" "(default)" "UDF Thumbnail Handler"
+Set-RegValue "$clsid64\$thumbClsid\InprocServer32" "(default)" $dll
+Set-RegValue "$clsid64\$thumbClsid\InprocServer32" "ThreadingModel" "Apartment"
 
-Set-RegKey "HKLM:\SOFTWARE\Classes\CLSID\$previewClsid" "(default)" "UDF Preview Handler"
-Set-RegKey "HKLM:\SOFTWARE\Classes\CLSID\$previewClsid" "AppID" $prevhost64
-Set-RegKey "HKLM:\SOFTWARE\Classes\CLSID\$previewClsid\InprocServer32" "(default)" $dll
-Set-RegKey "HKLM:\SOFTWARE\Classes\CLSID\$previewClsid\InprocServer32" "ThreadingModel" "Apartment"
+Set-RegValue "$clsid64\$previewClsid" "(default)" "UDF Preview Handler"
+Set-RegValue "$clsid64\$previewClsid" "AppID" $prevhost64
+Set-RegValue "$clsid64\$previewClsid\InprocServer32" "(default)" $dll
+Set-RegValue "$clsid64\$previewClsid\InprocServer32" "ThreadingModel" "Apartment"
 
-# --- 32-bit Registration (WOW6432Node for 32-bit Outlook) ---
+# --- 2. CLSID Registration (32-bit for Outlook) ---
 Write-Host 'x86 (Outlook 32-bit) kaydı yapılıyor...' -ForegroundColor Gray
-Set-RegKey "HKLM:\SOFTWARE\Classes\WOW6432Node\CLSID\$thumbClsid" "(default)" "UDF Thumbnail Handler"
-Set-RegKey "HKLM:\SOFTWARE\Classes\WOW6432Node\CLSID\$thumbClsid\InprocServer32" "(default)" $dllX86
-Set-RegKey "HKLM:\SOFTWARE\Classes\WOW6432Node\CLSID\$thumbClsid\InprocServer32" "ThreadingModel" "Apartment"
+$clsid32 = "HKLM:\SOFTWARE\Classes\WOW6432Node\CLSID"
+Set-RegValue "$clsid32\$thumbClsid" "(default)" "UDF Thumbnail Handler"
+Set-RegValue "$clsid32\$thumbClsid\InprocServer32" "(default)" $dllX86
+Set-RegValue "$clsid32\$thumbClsid\InprocServer32" "ThreadingModel" "Apartment"
 
-Set-RegKey "HKLM:\SOFTWARE\Classes\WOW6432Node\CLSID\$previewClsid" "(default)" "UDF Preview Handler"
-Set-RegKey "HKLM:\SOFTWARE\Classes\WOW6432Node\CLSID\$previewClsid" "AppID" $prevhost86
-Set-RegKey "HKLM:\SOFTWARE\Classes\WOW6432Node\CLSID\$previewClsid\InprocServer32" "(default)" $dllX86
-Set-RegKey "HKLM:\SOFTWARE\Classes\WOW6432Node\CLSID\$previewClsid\InprocServer32" "ThreadingModel" "Apartment"
+Set-RegValue "$clsid32\$previewClsid" "(default)" "UDF Preview Handler"
+Set-RegValue "$clsid32\$previewClsid" "AppID" $prevhost86
+Set-RegValue "$clsid32\$previewClsid\InprocServer32" "(default)" $dllX86
+Set-RegValue "$clsid32\$previewClsid\InprocServer32" "ThreadingModel" "Apartment"
 
-# --- Common Associations ---
-Set-RegKey "HKLM:\SOFTWARE\Classes\.udf\ShellEx\{e357fccd-a995-4576-b01f-234630154e96}" "(default)" $thumbClsid
-Set-RegKey "HKLM:\SOFTWARE\Classes\.udf\ShellEx\{8895b1c6-b41f-4c1c-a562-0d564250836f}" "(default)" $previewClsid
-Set-RegKey "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\PreviewHandlers" $previewClsid "UDF Preview Handler"
-Set-RegKey "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\PreviewHandlers" $previewClsid "UDF Preview Handler"
+# --- 3. ProgID and File Association ---
+Write-Host 'Dosya ilişkilendirmesi yapılıyor...' -ForegroundColor Gray
+$progId = "udf_file"
+Set-RegValue "HKLM:\SOFTWARE\Classes\$progId" "(default)" "UDF Belgesi"
+Set-RegValue "HKLM:\SOFTWARE\Classes\$progId\ShellEx\{e357fccd-a995-4576-b01f-234630154e96}" "(default)" $thumbClsid
+Set-RegValue "HKLM:\SOFTWARE\Classes\$progId\ShellEx\{8895b1c6-b41f-4c1c-a562-0d564250836f}" "(default)" $previewClsid
+
+# Associate .udf with the ProgID
+Set-RegValue "HKLM:\SOFTWARE\Classes\.udf" "(default)" $progId
+Set-RegValue "HKLM:\SOFTWARE\Classes\.udf\ShellEx\{e357fccd-a995-4576-b01f-234630154e96}" "(default)" $thumbClsid
+Set-RegValue "HKLM:\SOFTWARE\Classes\.udf\ShellEx\{8895b1c6-b41f-4c1c-a562-0d564250836f}" "(default)" $previewClsid
+
+# --- 4. Approved Handlers List ---
+Set-RegValue "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\PreviewHandlers" $previewClsid "UDF Preview Handler"
+Set-RegValue "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\PreviewHandlers" $previewClsid "UDF Preview Handler"
 
 # 4) Refresh Shell
 Write-Host 'Önbellek temizleniyor...' -ForegroundColor Gray

@@ -1,12 +1,12 @@
 ﻿**********************
 Windows PowerShell transcript start
-Start time: 20260610184115
+Start time: 20260610185859
 Username: STAJYER2\PC
 RunAs User: STAJYER2\PC
 Configuration Name: 
 Machine: STAJYER2 (Microsoft Windows NT 10.0.19045.0)
-Host Application: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -Command if((Get-ExecutionPolicy ) -ne 'AllSigned') { Set-ExecutionPolicy -Scope Process Bypass }; & 'D:\MAIN\PC\DESKTOP\x.ps1'
-Process ID: 167328
+Host Application: C:\Windows\System32\WindowsPowerShell\v1.0\powershell_ise.exe D:\MAIN\PC\DESKTOP\x.ps1
+Process ID: 116096
 PSVersion: 5.1.19041.6456
 PSEdition: Desktop
 PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.19041.6456
@@ -18,7 +18,7 @@ SerializationVersion: 1.1.0.1
 **********************
 ==================================================
  UDF PREVIEW HANDLER DIAGNOSTIC SCRIPT
- Date: 2026-06-10 18:41:15
+ Date: 2026-06-10 18:58:59
 ==================================================
 
 --- 1. SYSTEM & OS INFO ---
@@ -60,8 +60,8 @@ Outlook.exe Path: C:\Program Files (x86)\Microsoft Office\Root\Office16\OUTLOOK.
 [MISSING/EMPTY] HKCU:\Software\Microsoft\Windows\CurrentVersion\PreviewHandlers -> {7F3D9A21-4C8B-4E1A-9F2D-1A2B3C4D5E62}
 
 --- 6. DLL FILE VERIFICATION ---
-[OK] Found: C:\Users\PC\AppData\Local\udf-preview\udf_shell.dll (1090560 bytes)
-[OK] Found: C:\Users\PC\AppData\Local\udf-preview\udf_shell_x86.dll (902144 bytes)
+[OK] Found: C:\Users\PC\AppData\Local\udf-preview\udf_shell.dll (1078784 bytes)
+[OK] Found: C:\Users\PC\AppData\Local\udf-preview\udf_shell_x86.dll (894464 bytes)
 
 --- 7. WEBVIEW2 REGISTRATION ---
 [OK] HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5} -> pv : 149.0.4022.52
@@ -74,5 +74,5 @@ No relevant crashes or errors found in Application log.
 ==================================================
 **********************
 Windows PowerShell transcript end
-End time: 20260610184126
+End time: 20260610185910
 **********************

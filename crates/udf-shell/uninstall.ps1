@@ -12,11 +12,14 @@ Start-Sleep -Milliseconds 800
 
 # Remove Registry Keys (Native and WOW64)
 $keys = @(
+    "HKLM:\SOFTWARE\Classes\udf_file",
     "HKLM:\SOFTWARE\Classes\CLSID\$thumbClsid",
     "HKLM:\SOFTWARE\Classes\CLSID\$previewClsid",
+    "HKLM:\SOFTWARE\Classes\WOW6432Node\udf_file",
     "HKLM:\SOFTWARE\Classes\WOW6432Node\CLSID\$thumbClsid",
     "HKLM:\SOFTWARE\Classes\WOW6432Node\CLSID\$previewClsid",
     "HKLM:\SOFTWARE\Classes\.udf",
+    "HKCU:\Software\Classes\udf_file",
     "HKCU:\Software\Classes\CLSID\$thumbClsid",
     "HKCU:\Software\Classes\CLSID\$previewClsid",
     "HKCU:\Software\Classes\.udf"
