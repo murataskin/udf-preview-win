@@ -7,11 +7,12 @@
 # Requires the Edge WebView2 Runtime (built into Windows 11; auto-installed here on Windows 10).
 
 $ErrorActionPreference = 'Stop'
-$repo = 'saidsurucu/udf-preview-win'
+$repo = 'murataskin/udf-preview-win'
 $dllUrl = "https://github.com/$repo/releases/latest/download/udf_shell.dll"
+$dllX86Url = "https://github.com/$repo/releases/latest/download/udf_shell_x86.dll"
 $previewClsid = '{7F3D9A21-4C8B-4E1A-9F2D-1A2B3C4D5E62}'
 
-Write-Host 'UDF Önizleme kuruluyor...' -ForegroundColor Cyan
+Write-Host 'UDF Önizleme kuruluyor (x64 + x86 Outlook desteği)...' -ForegroundColor Cyan
 
 # 1) Ensure the Edge WebView2 Runtime (needed by the preview pane + viewer).
 function Test-WebView2 {
@@ -77,4 +78,4 @@ Get-ChildItem "$env:LOCALAPPDATA\Microsoft\Windows\Explorer" -Filter 'thumbcache
 if (-not (Get-Process explorer -ErrorAction SilentlyContinue)) { Start-Process explorer.exe }
 
 Write-Host 'Kuruldu! .udf dosyaları artık küçük resim ve Önizleme Bölmesi (Alt+P) gösterir.' -ForegroundColor Cyan
-Write-Host 'Kaldırmak için: irm https://github.com/saidsurucu/udf-preview-win/releases/latest/download/uninstall.ps1 | iex'
+Write-Host 'Kaldırmak için: irm https://github.com/murataskin/udf-preview-win/releases/latest/download/uninstall.ps1 | iex'
