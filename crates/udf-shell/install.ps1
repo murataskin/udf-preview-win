@@ -17,10 +17,11 @@ $prevhost86 = '{534A1E02-2BFE-4DF0-945D-255D5CE79298}'
 
 Write-Host 'UDF Önizleme kuruluyor (x64 + x86 Outlook desteği)...' -ForegroundColor Cyan
 
-# 0) Check Administrator privileges
+# 0) Check and Request Administrator privileges
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)
 if (-not $isAdmin) {
-    Write-Error "Lütfen bu scripti YÖNETİCİ OLARAK (Run as Administrator) çalıştırın. Outlook kaydı için bu gereklidir."
+    Write-Host "Yönetici izni gerekiyor, lütfen onaylayın..." -ForegroundColor Yellow
+    Start-Process powershell.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -Command `"& { $($myinvocation.MyCommand.Definition) }`"" -Verb RunAs
     return
 }
 
@@ -46,8 +47,9 @@ New-Item -ItemType Directory -Force $dir | Out-Null
 $dll = "$dir\udf_shell.dll"
 $dllX86 = "$dir\udf_shell_x86.dll"
 
-Stop-Process -Name explorer, dllhost, prevhost, msedgewebview2 -Force -ErrorAction SilentlyContinue
-Start-Sleep -Milliseconds 800
+Write-Host "DLL'ler indiriliyor: $dir" -ForegroundColor Gray
+# Kill processes only if we need to overwrite
+Stop-Process -Name dllhost, prevhost, msedgewebview2 -Force -ErrorAction SilentlyContinue
 
 Invoke-WebRequest $dllUrl -OutFile $dll -UseBasicParsing
 Invoke-WebRequest $dllX86Url -OutFile $dllX86 -UseBasicParsing
@@ -56,7 +58,14 @@ Unblock-File $dllX86
 
 # 3) Manual Registry Injection (The "regsvr32" bypass)
 function Set-RegValue($path, $name, $value) {
-    if (-not (Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
+    $parts = $path -split ':\\', 2
+    $root = $parts[0]
+    $subkey = $parts[1]
+    
+    if (-not (Test-Path $path)) { 
+        New-Item -Path $path -Force | Out-Null 
+    }
+    
     if ($name -eq "(default)") {
         Set-Item -Path $path -Value $value | Out-Null
     } else {
@@ -105,8 +114,19 @@ Set-RegValue "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\PreviewHandlers" $
 Set-RegValue "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\PreviewHandlers" $previewClsid "UDF Preview Handler"
 
 # 4) Refresh Shell
-Write-Host 'Önbellek temizleniyor...' -ForegroundColor Gray
-Get-ChildItem "$env:LOCALAPPDATA\Microsoft\Windows\Explorer" -Filter 'thumbcache_*.db' -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
-if (-not (Get-Process explorer -ErrorAction SilentlyContinue)) { Start-Process explorer.exe }
+Write-Host 'Shell yenileniyor...' -ForegroundColor Gray
+# Clear thumbnail cache
+Remove-Item "$env:LOCALAPPDATA\Microsoft\Windows\Explorer\thumbcache_*.db" -Force -ErrorAction SilentlyContinue
+
+# Notify shell of changes (more elegant than killing explorer if possible)
+$code = @'
+[DllImport("shell32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+public static extern void SHChangeNotify(uint wEventId, uint uFlags, IntPtr dwItem1, IntPtr dwItem2);
+'@
+Add-Type -MemberDefinition $code -Namespace Native -Name Shell32 -ErrorAction SilentlyContinue
+[Native.Shell32]::SHChangeNotify(0x08000000, 0x0000, [IntPtr]::Zero, [IntPtr]::Zero) # SHCNE_ASSOCCHANGED
+
+Write-Host 'Kuruldu! Outlook ve Gezgin artık UDF dosyalarını önizleyebilir.' -ForegroundColor Green
+Write-Host 'Değişikliklerin tam etkili olması için oturumu kapatıp açmanız veya Explorer''ı yeniden başlatmanız gerekebilir.' -ForegroundColor Yellow
 
 Write-Host 'Kuruldu! Outlook ve Gezgin artık UDF dosyalarını önizleyebilir.' -ForegroundColor Green
