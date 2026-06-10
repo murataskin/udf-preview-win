@@ -17,14 +17,15 @@ use std::cell::{Cell, RefCell};
 use std::ffi::c_void;
 use std::num::NonZeroIsize;
 
-use windows::core::{implement, Error, IUnknown, Interface, Result, GUID};
+use windows::core::{implement, Error, IUnknown, Interface, Result, GUID, PCWSTR};
 use windows::Win32::Foundation::{E_FAIL, E_POINTER, HWND, RECT, S_FALSE};
 use windows::Win32::System::Com::IStream;
 use windows::Win32::System::Ole::{
     IObjectWithSite, IObjectWithSite_Impl, IOleWindow, IOleWindow_Impl,
 };
 use windows::Win32::UI::Shell::PropertiesSystem::{
-    IInitializeWithStream, IInitializeWithStream_Impl,
+    IInitializeWithFile, IInitializeWithFile_Impl, IInitializeWithStream,
+    IInitializeWithStream_Impl,
 };
 use windows::Win32::UI::Shell::{IPreviewHandler, IPreviewHandler_Impl};
 use windows::Win32::UI::WindowsAndMessaging::MSG;
@@ -39,26 +40,28 @@ use wry::{Rect, WebViewBuilder};
 use crate::com::{guard_com, read_all_stream, DllGuard};
 
 /// WebView2 user-data folder, under `LocalLow` so the **low-integrity** preview surrogate
-/// (`prevhost.exe`) can write it — `%LOCALAPPDATA%` is medium-integrity and denied there,
-/// which otherwise leaves the environment uninitialised and the pane blank.
+/// (`prevhost.exe`) can write it. Mimarilere (x86/x64) göre ayırıyoruz ki 32-bit Outlook
+/// ile 64-bit Windows Gezgini aynı anda WebView2 çalıştırırken kilitlenme/çakışma yaşamasın.
 fn webview_data_dir() -> std::path::PathBuf {
     let base = std::env::var_os("USERPROFILE")
         .map(std::path::PathBuf::from)
         .unwrap_or_default();
+
+    #[cfg(target_arch = "x86_64")]
+    let arch_suffix = "x64";
+    #[cfg(target_arch = "x86")]
+    let arch_suffix = "x86";
+
     base.join("AppData")
         .join("LocalLow")
         .join("udf-preview")
-        .join("webview2")
+        .join(format!("webview2-{arch_suffix}"))
 }
 
 /// Scale the A4 page down to the (usually narrow) preview-pane width via CSS `zoom`, so the
 /// document fits horizontally and scrolls vertically instead of being clipped. Injected only
 /// for the preview pane — the core HTML and the standalone viewer keep the full A4 width.
 fn fit_to_width(html: &str) -> String {
-    // `overflow-y:scroll` reserves the vertical scrollbar up-front so `clientWidth` is stable
-    // when we measure (otherwise the scrollbar appears after fitting and steals ~17px); the
-    // body gutter gives a small margin; the page is left-aligned (not `margin:auto`, which
-    // mis-centres under `zoom`).
     const INJECT: &str = "<style>html{overflow-x:hidden;overflow-y:scroll}\
 body{margin:0!important;padding:14px!important;box-sizing:border-box;overflow-x:hidden}\
 .udf-page{margin:0!important}</style>\
@@ -89,10 +92,17 @@ impl HasWindowHandle for HwndHost {
     }
 }
 
-#[implement(IInitializeWithStream, IPreviewHandler, IObjectWithSite, IOleWindow)]
+#[implement(
+    IInitializeWithStream,
+    IInitializeWithFile,
+    IPreviewHandler,
+    IObjectWithSite,
+    IOleWindow
+)]
 #[derive(Default)]
 pub struct UdfPreviewHandler {
     stream: RefCell<Option<IStream>>,
+    file_path: RefCell<Option<String>>,
     site: RefCell<Option<IUnknown>>,
     parent: Cell<isize>,
     rect: RefCell<RECT>,
@@ -104,6 +114,17 @@ pub struct UdfPreviewHandler {
 impl IInitializeWithStream_Impl for UdfPreviewHandler_Impl {
     fn Initialize(&self, pstream: Option<&IStream>, _grfmode: u32) -> Result<()> {
         *self.stream.borrow_mut() = pstream.cloned();
+        *self.file_path.borrow_mut() = None;
+        Ok(())
+    }
+}
+
+// Outlook genellikle IInitializeWithFile kullanır.
+impl IInitializeWithFile_Impl for UdfPreviewHandler_Impl {
+    fn Initialize(&self, pszfilepath: &PCWSTR, _grfmode: u32) -> Result<()> {
+        let path = unsafe { pszfilepath.to_string().unwrap_or_default() };
+        *self.file_path.borrow_mut() = Some(path);
+        *self.stream.borrow_mut() = None;
         Ok(())
     }
 }
@@ -128,12 +149,15 @@ impl IPreviewHandler_Impl for UdfPreviewHandler_Impl {
 
     fn DoPreview(&self) -> Result<()> {
         guard_com(|| {
-            let stream = self
-                .stream
-                .borrow()
-                .clone()
-                .ok_or_else(|| Error::from(E_FAIL))?;
-            let bytes = unsafe { read_all_stream(&stream)? };
+            // Önce akış (Gezgin), yoksa dosya yolu (Outlook) üzerinden veriyi oku
+            let bytes = if let Some(stream) = self.stream.borrow().clone() {
+                unsafe { read_all_stream(&stream)? }
+            } else if let Some(path) = self.file_path.borrow().clone() {
+                std::fs::read(&path).map_err(|_| Error::from(E_FAIL))?
+            } else {
+                return Err(Error::from(E_FAIL));
+            };
+
             let html =
                 fit_to_width(&udf_core::udf_to_html(&bytes).map_err(|_| Error::from(E_FAIL))?);
 
@@ -161,7 +185,7 @@ impl IPreviewHandler_Impl for UdfPreviewHandler_Impl {
                 .with_url(format!("udf://localhost/?v={}", next_load_id()))
                 .build()
                 .map_err(|_| Error::from(E_FAIL))?;
-            // The &mut borrow ended with build(); keep the context alive alongside the webview.
+                
             *self.web_context.borrow_mut() = Some(web_context);
             *self.webview.borrow_mut() = Some(webview);
             Ok(())
@@ -169,10 +193,10 @@ impl IPreviewHandler_Impl for UdfPreviewHandler_Impl {
     }
 
     fn Unload(&self) -> Result<()> {
-        // Dropping the WebView destroys the child window/controller.
         *self.webview.borrow_mut() = None;
         *self.web_context.borrow_mut() = None;
         *self.stream.borrow_mut() = None;
+        *self.file_path.borrow_mut() = None;
         Ok(())
     }
 
@@ -181,7 +205,6 @@ impl IPreviewHandler_Impl for UdfPreviewHandler_Impl {
     }
 
     fn QueryFocus(&self) -> Result<HWND> {
-        // The WebView2 child owns keyboard focus; report the preview's parent window.
         let p = self.parent.get();
         if p == 0 {
             Err(E_FAIL.into())
@@ -191,7 +214,6 @@ impl IPreviewHandler_Impl for UdfPreviewHandler_Impl {
     }
 
     fn TranslateAccelerator(&self, _pmsg: *const MSG) -> Result<()> {
-        // S_FALSE: not handled here, let the host process the message.
         Err(Error::from(S_FALSE))
     }
 }
@@ -199,9 +221,6 @@ impl IPreviewHandler_Impl for UdfPreviewHandler_Impl {
 impl UdfPreviewHandler_Impl {
     fn bounds(&self) -> Rect {
         let rc = *self.rect.borrow();
-        // The host gives the rect in physical device pixels; pass it through as physical so
-        // wry doesn't re-scale it by the monitor's DPI factor (which oversizes the webview on
-        // a >100% display and clips its right/bottom).
         Rect {
             position: PhysicalPosition::new(rc.left, rc.top).into(),
             size: PhysicalSize::new((rc.right - rc.left).max(0), (rc.bottom - rc.top).max(0))

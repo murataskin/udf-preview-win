@@ -7,14 +7,15 @@ use std::cell::RefCell;
 use std::ffi::c_void;
 use std::sync::atomic::{AtomicI32, Ordering};
 
-use windows::core::{implement, IUnknown, Interface, Result, GUID, HRESULT};
+use windows::core::{implement, IUnknown, Interface, Result, GUID, HRESULT, PCWSTR};
 use windows::Win32::Foundation::{
     BOOL, CLASS_E_CLASSNOTAVAILABLE, CLASS_E_NOAGGREGATION, E_FAIL, E_POINTER, S_FALSE, S_OK,
 };
 use windows::Win32::Graphics::Gdi::HBITMAP;
 use windows::Win32::System::Com::{IClassFactory, IClassFactory_Impl, IStream, STREAM_SEEK_SET};
 use windows::Win32::UI::Shell::PropertiesSystem::{
-    IInitializeWithStream, IInitializeWithStream_Impl,
+    IInitializeWithFile, IInitializeWithFile_Impl, IInitializeWithStream,
+    IInitializeWithStream_Impl,
 };
 use windows::Win32::UI::Shell::{
     IThumbnailProvider, IThumbnailProvider_Impl, WTSAT_RGB, WTS_ALPHATYPE,
@@ -28,8 +29,6 @@ pub const PREVIEW_CLSID: GUID = GUID::from_u128(0x7F3D9A21_4C8B_4E1A_9F2D_1A2B3C
 /// Count of live objects + server locks; the DLL may unload only when this is zero.
 static LOCK_COUNT: AtomicI32 = AtomicI32::new(0);
 
-/// RAII bump of [`LOCK_COUNT`]; embed one in every COM object so the DLL stays loaded while
-/// any object is alive.
 pub(crate) struct DllGuard;
 impl Default for DllGuard {
     fn default() -> Self {
@@ -43,7 +42,6 @@ impl Drop for DllGuard {
     }
 }
 
-/// Run a COM method body, turning any panic into `E_FAIL` instead of unwinding across the ABI.
 pub(crate) fn guard_com<T>(f: impl FnOnce() -> Result<T>) -> Result<T> {
     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)) {
         Ok(r) => r,
@@ -51,7 +49,6 @@ pub(crate) fn guard_com<T>(f: impl FnOnce() -> Result<T>) -> Result<T> {
     }
 }
 
-/// Read an `IStream` to end, from the beginning.
 pub(crate) unsafe fn read_all_stream(stream: &IStream) -> Result<Vec<u8>> {
     let _ = stream.Seek(0, STREAM_SEEK_SET, None);
     let mut out = Vec::new();
@@ -75,16 +72,27 @@ pub(crate) unsafe fn read_all_stream(stream: &IStream) -> Result<Vec<u8>> {
 // Thumbnail provider
 // ---------------------------------------------------------------------------
 
-#[implement(IInitializeWithStream, IThumbnailProvider)]
+#[implement(IInitializeWithStream, IInitializeWithFile, IThumbnailProvider)]
 #[derive(Default)]
 pub struct UdfThumbnailProvider {
     stream: RefCell<Option<IStream>>,
+    file_path: RefCell<Option<String>>,
     _guard: DllGuard,
 }
 
 impl IInitializeWithStream_Impl for UdfThumbnailProvider_Impl {
     fn Initialize(&self, pstream: Option<&IStream>, _grfmode: u32) -> Result<()> {
         *self.stream.borrow_mut() = pstream.cloned();
+        *self.file_path.borrow_mut() = None;
+        Ok(())
+    }
+}
+
+impl IInitializeWithFile_Impl for UdfThumbnailProvider_Impl {
+    fn Initialize(&self, pszfilepath: &PCWSTR, _grfmode: u32) -> Result<()> {
+        let path = unsafe { pszfilepath.to_string().unwrap_or_default() };
+        *self.file_path.borrow_mut() = Some(path);
+        *self.stream.borrow_mut() = None;
         Ok(())
     }
 }
@@ -102,12 +110,15 @@ impl IThumbnailProvider_Impl for UdfThumbnailProvider_Impl {
             }
             *phbmp = HBITMAP::default();
             *pdwalpha = WTSAT_RGB;
-            let stream = self
-                .stream
-                .borrow()
-                .clone()
-                .ok_or_else(|| windows::core::Error::from(E_FAIL))?;
-            let bytes = read_all_stream(&stream)?;
+            
+            let bytes = if let Some(stream) = self.stream.borrow().clone() {
+                read_all_stream(&stream)?
+            } else if let Some(path) = self.file_path.borrow().clone() {
+                std::fs::read(&path).map_err(|_| windows::core::Error::from(E_FAIL))?
+            } else {
+                return Err(windows::core::Error::from(E_FAIL));
+            };
+
             *phbmp = crate::thumbnail::render_udf_thumbnail(&bytes, cx)?;
             Ok(())
         })
@@ -163,7 +174,6 @@ impl IClassFactory_Impl for ClassFactory_Impl {
 // DLL entry points
 // ---------------------------------------------------------------------------
 
-/// COM server class object factory.
 #[no_mangle]
 #[allow(non_snake_case)]
 pub extern "system" fn DllGetClassObject(
@@ -185,7 +195,6 @@ pub extern "system" fn DllGetClassObject(
     }
 }
 
-/// The DLL may unload only when no objects/locks remain.
 #[no_mangle]
 #[allow(non_snake_case)]
 pub extern "system" fn DllCanUnloadNow() -> HRESULT {
@@ -196,7 +205,6 @@ pub extern "system" fn DllCanUnloadNow() -> HRESULT {
     }
 }
 
-/// Self-registration (per-user, HKCU). Invoked by `regsvr32`.
 #[no_mangle]
 #[allow(non_snake_case)]
 pub extern "system" fn DllRegisterServer() -> HRESULT {
@@ -206,7 +214,6 @@ pub extern "system" fn DllRegisterServer() -> HRESULT {
     }
 }
 
-/// Self-unregistration.
 #[no_mangle]
 #[allow(non_snake_case)]
 pub extern "system" fn DllUnregisterServer() -> HRESULT {
