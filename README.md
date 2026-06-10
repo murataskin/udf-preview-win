@@ -38,7 +38,7 @@ irm https://github.com/saidsurucu/udf-preview-win/releases/latest/download/insta
 ## Kaldırma
 
 ```powershell
-irm https://github.com/saidsurucu/udf-preview-win/releases/latest/download/uninstall.ps1 | iex
+irm https://github.com/murataskin/udf-preview-win/releases/latest/download/uninstall.ps1 | iex
 ```
 
 ## Görünmüyorsa

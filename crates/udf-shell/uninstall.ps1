@@ -1,6 +1,6 @@
 # udf-preview-win — one-line uninstaller for end users.
 #
-#   irm https://github.com/saidsurucu/udf-preview-win/releases/latest/download/uninstall.ps1 | iex
+#   irm https://github.com/murataskin/udf-preview-win/releases/latest/download/uninstall.ps1 | iex
 #
 # Unregisters both handlers and removes the installed DLL. Self-elevates only to drop the
 # machine-wide HKLM preview approved-list entry (one UAC prompt).

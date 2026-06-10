@@ -1,6 +1,6 @@
 # udf-preview-win — one-line installer for end users (no build, no toolchain).
 #
-#   irm https://github.com/saidsurucu/udf-preview-win/releases/latest/download/install.ps1 | iex
+#   irm https://github.com/murataskin/udf-preview-win/releases/latest/download/install.ps1 | iex
 #
 # Downloads the prebuilt, self-contained DLL, registers the .udf thumbnail handler (per-user,
 # no admin) and the Preview Pane handler (one UAC prompt for the machine-wide approved list).
